@@ -66,10 +66,9 @@ class MeshDrawer {
 		 * @Task2 : You should initialize the required variables for lighting here
 		 */
 		 // Lighting uniforms
-		 this.lightPosLoc = gl.getUniformLocation(this.prog, 'lightPos');
-		 this.enableLightingLoc = gl.getUniformLocation(this.prog, 'enableLighting');
-		 this.ambientLoc = gl.getUniformLocation(this.prog, 'ambient');
-		
+		 this.ambientLight = gl.getUniformLocation(this.prog, "ambient");
+		 this.enableLightingLoc = gl.getUniformLocation(this.prog, "enableLighting");
+		 this.lightPosLoc  = gl.getUniformLocation(this.prog, "lightPos")
 	}
 
 	setMesh(vertPos, texCoords, normalCoords) {
@@ -85,6 +84,8 @@ class MeshDrawer {
 		/**
 		 * @Task2 : You should update the rest of this function to handle the lighting
 		 */
+		gl.bindBuffer(gl.ARRAY_BUFFER, this.normbuffer);
+		gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(normalCoords), gl.STATIC_DRAW);
 	}
 
 	// This method is called to draw the triangular mesh.
@@ -109,8 +110,9 @@ class MeshDrawer {
 
 		///////////////////////////////
 		// Update light position
-		gl.uniform3f(this.lightPosLoc, lightX, lightY, 0.0); // Example light position
-		updateLightPos();
+		gl.uniform3fv(this.lightPosLoc, [lightX, lightY, 1]);
+		gl.uniform1f(this.ambientLight, this.ambient);
+		gl.uniform1i(this.enableLightingLoc, this.enableLight? 1 : 0); 
 
 		updateLightPos();
 		gl.drawArrays(gl.TRIANGLES, 0, this.numTriangles);
@@ -165,8 +167,9 @@ class MeshDrawer {
 		/**
 		 * @Task2 : You should implement the lighting and implement this function
 		 */
+		this.enableLight = show;
 		gl.useProgram(this.prog);
-		gl.uniform1i(this.enableLightingLoc, show);
+    	gl.uniform1i(this.enableLightingLoc, show ? 1 : 0);
 	}
 	
 	setAmbientLight(ambient) {
@@ -174,8 +177,9 @@ class MeshDrawer {
 		/**
 		 * @Task2 : You should implement the lighting and implement this function
 		 */
+		this.ambient = ambient;
 		gl.useProgram(this.prog);
-		gl.uniform1f(this.ambientLoc, ambient);
+		gl.uniform1f(this.ambientLightLoc, ambient);
 	}
 }
 
@@ -234,25 +238,24 @@ varying vec3 v_normal;
 
 void main()
 {
-    vec3 normalizedNormal = normalize(v_normal);
-    vec3 lightDir = normalize(lightPos);
-    
-    // Calculate diffuse lighting
-    float diffuse = max(dot(normalizedNormal, lightDir), 0.0);
-    
-    // Combine ambient and diffuse components
-   vec3 ambientLight = vec3(ambient); // Convert ambient to a vec3
-	vec3 diffuseLight = vec3((1.0 - ambient) * diffuse); // Scale diffuse to vec3
-	vec3 lighting = ambientLight + diffuseLight; // Add them together
-    
-    if (showTex) {
-        vec4 texColor = texture2D(tex, v_texCoord);
-        gl_FragColor = enableLighting ? vec4(texColor.rgb * lighting, texColor.a) : texColor;
-    } else {
-        gl_FragColor = enableLighting ? vec4(color * lighting, 1.0) : vec4(color, 1.0);
-    }
-}
-`;
+	if(showTex && enableLighting){
+		// UPDATE THIS PART TO HANDLE LIGHTING
+		vec3 normalizedNormal = normalize(v_normal);
+		vec3 normalizedLightDir = normalize(lightPos);
+		float diffuse = max(dot(normalizedNormal, normalizedLightDir), 0.0);
+		vec4 diffuseColor = diffuse * vec4(1.0, 1.0, 1.0, 1.0);
+		vec4 ambientLight = ambient * vec4(1.0, 1.0, 1.0, 1.0);
+		vec4 finalColor = diffuseColor + ambientLight;
+		vec4 texColor = texture2D(tex, v_texCoord);
+		gl_FragColor = finalColor * texColor;
+	}
+	else if(showTex){
+		gl_FragColor = texture2D(tex, v_texCoord);
+	}
+	else{
+		gl_FragColor =  vec4(1.0, 0, 0, 1.0);
+	}
+}`;
 
 
 // Light direction parameters for Task 2
