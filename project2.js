@@ -58,14 +58,20 @@ class MeshDrawer {
 		this.vertbuffer = gl.createBuffer();
 		this.texbuffer = gl.createBuffer();
 		this.normalbuffer = gl.createBuffer();
-		
-	
+
+        this.specularIntensity = 0.5; // Default value
+        this.viewDirLoc = gl.getUniformLocation(this.prog, 'viewDir');
+        this.specularIntensityLoc = gl.getUniformLocation(this.prog, 'specularIntensity');
+
+            
+        
 		/**
 		 * @Task2 : You should initialize the required variables for lighting here
 		 */
         this.lightPos = [1,1,1]
 		this.ambient = 0.1;
 		this.numTriangles = 0;
+        this.enableLighting(false);
 	}
 
 	setMesh(vertPos, texCoords, normalCoords) {
@@ -98,6 +104,7 @@ class MeshDrawer {
 		gl.bindBuffer(gl.ARRAY_BUFFER, this.vertbuffer);
 		gl.enableVertexAttribArray(this.vertPosLoc);
 		gl.vertexAttribPointer(this.vertPosLoc, 3, gl.FLOAT, false, 0, 0);
+        console.log('Specular Intensity:', this.specularIntensity);
 
 		gl.bindBuffer(gl.ARRAY_BUFFER, this.texbuffer);
 		gl.enableVertexAttribArray(this.texCoordLoc);
@@ -106,7 +113,9 @@ class MeshDrawer {
 		gl.bindBuffer(gl.ARRAY_BUFFER, this.normalbuffer);
 		gl.enableVertexAttribArray(this.normalLoc);
 		gl.vertexAttribPointer(this.normalLoc, 3, gl.FLOAT, false, 0, 0);
-
+        	/**
+		 * @Task2 : You should update this function to handle the lighting
+		 */
 		// Set the light position uniform
 		updateLightPos();
 		// gl.uniform3fv(this.lightPosLoc, new Float32Array(this.lightPos));
@@ -118,8 +127,13 @@ class MeshDrawer {
 		gl.drawArrays(gl.TRIANGLES, 0, this.numTriangles);
 		
 		/**
-		 * @Task2 : You should update this function to handle the lighting
+		 * @Task3 :
 		 */
+
+        const viewDir = [0, 0, 1]; // Assuming the camera is along the Z-axis
+        gl.uniform3fv(this.viewDirLoc, new Float32Array(viewDir));
+        gl.uniform1f(this.specularIntensityLoc, this.specularIntensity);
+
 
 	}
 
@@ -164,7 +178,6 @@ class MeshDrawer {
 	}
 
 	enableLighting(show) {
-		console.error("Task 2: You should implement the lighting and implement this function ");
 		/**
 		 * @Task2 : You should implement the lighting and implement this function
 		 */
@@ -172,14 +185,43 @@ class MeshDrawer {
 		gl.uniform1i(this.enableLightingLoc, show);
 	}
 	
-	setAmbientLight(ambient) {
-		console.error("Task 2: You should implement the lighting and implement this function ");
-		/**
-		 * @Task2 : You should implement the lighting and implement this function
-		 */
-		this.ambient = ambient;
-	}
+    setSpecularIntensity(intensity) {
+        this.specularIntensity = intensity;
+        gl.useProgram(this.prog);
+        gl.uniform1f(this.specularIntensityLoc, this.specularIntensity);
+    }
+    
+
+    setAmbientLight(ambient) {
+        // Check if lighting is enabled
+        if (!this.isLightingEnabled()) return;
+    
+        // Update ambient value
+        this.ambient = ambient;
+        gl.useProgram(this.prog);
+        gl.uniform1f(this.ambientLoc, this.ambient);
+    }
+    
+    setSpecularIntensity(intensity) {
+        // Check if lighting is enabled
+        if (!this.isLightingEnabled()) return;
+    
+        // Update specular intensity
+        this.specularIntensity = intensity;
+        gl.useProgram(this.prog);
+        gl.uniform1f(this.specularIntensityLoc, this.specularIntensity);
+    }
+    
+    // Helper function to check if lighting is enabled
+    isLightingEnabled() {
+        gl.useProgram(this.prog);
+        const enableLighting = gl.getUniform(this.prog, this.enableLightingLoc);
+        return enableLighting;
+    }
+    
+
 }
+
 
 
 function isPowerOf2(value) {
@@ -229,27 +271,40 @@ uniform bool enableLighting;
 uniform sampler2D tex;
 uniform vec3 color; 
 uniform vec3 lightPos;
-uniform float ambient;
+uniform float ambient; // Base ambient light
+uniform float specularIntensity;
+uniform vec3 viewDir;
 
 varying vec2 v_texCoord;
 varying vec3 v_normal;
 
 void main()
-{				
-    if(showTex && enableLighting){
-        vec3 norm = normalize(v_normal); // Normalize the interpolated normal for the fragment
-        vec3 lightDir = normalize(lightPos); // Calculate the light direction
-        float diff = max(dot(norm, -lightDir), 0.0); // Compute the diffuse factor
-        float light = (ambient + diff);
-        gl_FragColor = texture2D(tex, v_texCoord) * light;
+{   
+    vec3 norm = normalize(v_normal);
+    vec3 lightDir = normalize(lightPos);
+    vec3 reflectedLight = reflect(-lightDir, norm); // Reflect the light based on the normal
+    vec3 viewerDir = normalize(viewDir);           // Viewer direction for specular highlights
+
+    // Adjust ambient and diffuse lighting
+    float adjustedAmbient = ambient * 0.5; // Reduce ambient lighting to make it darker by default
+    float diff = max(dot(norm, -lightDir), 0.0) * 0.7; // Scale down diffuse lighting for a darker appearance
+    float light = adjustedAmbient + diff;
+
+    // Specular component
+    float spec = 0.0;
+    if (enableLighting) {
+        float shininess = 64.0; // Shininess exponent (adjust as necessary)
+        spec = pow(max(dot(reflectedLight, viewerDir), 0.0), shininess) * specularIntensity;
     }
-    else if(showTex){
-        gl_FragColor = texture2D(tex, v_texCoord);
-    }
-    else{
-        gl_FragColor =  vec4(1.0, 0, 0, 1.0);
-    }
-}`;
+
+    vec4 texColor = showTex ? texture2D(tex, v_texCoord) : vec4(color, 1.0);
+
+    // Combine ambient, diffuse, and specular
+    gl_FragColor = texColor * light + vec4(spec, spec, spec, 1.0);
+}
+
+
+`;
 
 // Light direction parameters for Task 2
 var lightX = 1;
@@ -257,6 +312,8 @@ var lightY = 1;
 
 const keys = {};
 function updateLightPos() {
+    if (!meshDrawer.isLightingEnabled()) return;
+
 	const translationSpeed = 1;
 	if (keys['ArrowUp']) lightY -= translationSpeed;
 	if (keys['ArrowDown']) lightY += translationSpeed;

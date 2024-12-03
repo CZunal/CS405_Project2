@@ -336,6 +336,14 @@ function LoadTexture( param )
 	DrawScene();
 }
 
+function SetSpecularLight(param) {
+    console.log('Specular intensity set to:', param.value); // Debug log
+    meshDrawer.setSpecularIntensity(parseFloat(param.value) / 100); // Normalize intensity (0-1)
+    DrawScene(); // Redraw the scene with updated intensity
+}
+
+
+
 ///////////////////////////////////////////////////////////////////////////////////
 </script>
 
