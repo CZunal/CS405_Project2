@@ -342,6 +342,28 @@ function SetSpecularLight(param) {
     DrawScene(); // Redraw the scene with updated intensity
 }
 
+function LoadTexture2(param) {
+    if (param.files && param.files[0]) {
+        const reader = new FileReader();
+        reader.onload = function (e) {
+            const img = new Image();
+            img.src = e.target.result;
+            img.onload = function () {
+                meshDrawer.setSecondTexture(img);
+                DrawScene();
+            };
+        };
+        reader.readAsDataURL(param.files[0]);
+    }
+}
+
+function SetBlendFactor(param) {
+    const factor = parseFloat(param.value) / 100; // Normalize between 0-1
+    meshDrawer.setBlendFactor(factor);
+    DrawScene();
+}
+
+
 
 
 ///////////////////////////////////////////////////////////////////////////////////
@@ -447,7 +469,14 @@ canvas {
 <div class="control-group">
 <div class="control">OBJ model:<br/><input id="obj" type="file" onchange="LoadObj(this)" accept=".obj"/></div>
 <div class="control">Texture image:<br/><input id="texture" type="file" onchange="LoadTexture(this)" accept="image/*"/></div>
-<div class="control">Second Texture image:<br/><input id="texture2" type="file" onchange="LoadTexture2(this)" accept="image/*"/></div>
+<div class="control">Second Texture image:<br/>
+    <input id="texture2" type="file" onchange="LoadTexture2(this)" accept="image/*"/>
+</div>
+<div class="control">
+    <input id="blend-factor" type="range" min="0" max="100" value="50" onchange="SetBlendFactor(this)"/>
+    Blend Factor
+</div>
+
 </div>
 
 <div class="control-group">
